@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM App</title>
+  <style>
+    /* ── Reset & Base ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #333;
+    }
+
+    /* ── Layout ── */
+    header {
+      background: #2563eb;
+      color: white;
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    header h1 { font-size: 1.4rem; }
+
+    nav {
+      background: white;
+      display: flex;
+      gap: 4px;
+      padding: 8px 32px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    nav button {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      background: transparent;
+      color: #555;
+      transition: background 0.2s;
+    }
+    nav button:hover { background: #f3f4f6; }
+    nav button.active { background: #2563eb; color: white; }
+
+    main { padding: 24px 32px; max-width: 1100px; margin: 0 auto; }
+
+    /* ── Cards & Tables ── */
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .card h2 { margin-bottom: 16px; font-size: 1.1rem; color: #1e40af; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: #f8fafc; padding: 10px 12px; text-align: left; border-bottom: 2px solid #e5e7eb; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+    tr:hover td { background: #f8fafc; }
+
+    /* ── Forms ── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    input:focus, select:focus { outline: none; border-color: #2563eb; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-danger  { background: #ef4444; color: white; padding: 4px 12px; font-size: 0.8rem; }
+    .btn-edit    { background: #f59e0b; color: white; padding: 4px 12px; font-size: 0.8rem; }
+
+    /* ── Stage Badge ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-lead        { background: #dbeafe; color: #1d4ed8; }
+    .badge-proposal    { background: #fef9c3; color: #92400e; }
+    .badge-negotiation { background: #fce7f3; color: #9d174d; }
+    .badge-won         { background: #d1fae5; color: #065f46; }
+    .badge-lost        { background: #fee2e2; color: #991b1b; }
+
+    /* ── Tab sections ── */
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #1e293b; color: white;
+      padding: 12px 20px; border-radius: 8px;
+      font-size: 0.9rem; opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.6rem">📊</span>
+  <h1>CRM App</h1>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('contacts', this)">👥 Contacts</button>
+  <button onclick="switchTab('deals', this)">💼 Deals</button>
+</nav>
+
+<main>
+
+  <!-- ─── Contacts Tab ─── -->
+  <div id="tab-contacts" class="tab-section active">
+    <div class="card">
+      <h2>เพิ่ม Contact ใหม่</h2>
+      <div class="form-grid">
+        <input id="c-name"    type="text"  placeholder="ชื่อ *" />
+        <input id="c-email"   type="email" placeholder="Email *" />
+        <input id="c-phone"   type="text"  placeholder="เบอร์โทร" />
+        <input id="c-company" type="text"  placeholder="บริษัท" />
+      </div>
+      <button class="btn btn-primary" onclick="addContact()">+ เพิ่ม Contact</button>
+    </div>
+
+    <div class="card">
+      <h2>รายชื่อ Contacts</h2>
+      <table>
+        <thead>
+          <tr><th>ชื่อ</th><th>Email</th><th>โทร</th><th>บริษัท</th><th>จัดการ</th></tr>
+        </thead>
+        <tbody id="contacts-table">
+          <tr><td colspan="5" style="text-align:center;color:#999">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ─── Deals Tab ─── -->
+  <div id="tab-deals" class="tab-section">
+    <div class="card">
+      <h2>เพิ่ม Deal ใหม่</h2>
+      <div class="form-grid">
+        <input id="d-title" type="text"   placeholder="ชื่อ Deal *" />
+        <input id="d-value" type="number" placeholder="มูลค่า (บาท)" min="0" />
+        <select id="d-stage">
+          <option value="lead">Lead</option>
+          <option value="proposal">Proposal</option>
+          <option value="negotiation">Negotiation</option>
+          <option value="won">Won</option>
+          <option value="lost">Lost</option>
+        </select>
+        <select id="d-contact">
+          <option value="">-- เลือก Contact --</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="addDeal()">+ เพิ่ม Deal</button>
+    </div>
+
+    <div class="card">
+      <h2>รายการ Deals</h2>
+      <table>
+        <thead>
+          <tr><th>ชื่อ Deal</th><th>มูลค่า</th><th>Stage</th><th>Contact</th><th>จัดการ</th></tr>
+        </thead>
+        <tbody id="deals-table">
+          <tr><td colspan="5" style="text-align:center;color:#999">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- โหลด JavaScript หลัก -->
+<script src="app.js"></script>
+
+</body>
+</html>

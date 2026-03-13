@@ -1,0 +1,13 @@
+# Node modules
+node_modules/
+
+# Environment variables (อย่า commit ไฟล์นี้ขึ้น git!)
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
