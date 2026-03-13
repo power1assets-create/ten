@@ -1,7 +1,7 @@
 # Node modules
 node_modules/
 
-# Environment variables (อย่า commit ไฟล์นี้ขึ้น git!)
+# Environment variables (อย่า commit ขึ้น git!)
 .env
 
 # Logs

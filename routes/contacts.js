@@ -42,6 +42,52 @@ router.get('/', async (req, res) => {
   }
 });
 
+// ── GET /api/contacts/export ──────────────────────────────────────────────────
+// ⚠️ ต้องอยู่ก่อน /:id
+// คืน CSV พร้อม BOM ให้ Excel อ่านภาษาไทยได้
+router.get('/export', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        c.id, c.name, c.company, c.email, c.phone, c.status,
+        c.tags, c.notes, c.created_at,
+        COUNT(d.id)::INT          AS deal_count,
+        COALESCE(SUM(d.value), 0) AS deal_total
+      FROM contacts c
+      LEFT JOIN deals d ON d.contact_id = c.id
+      GROUP BY c.id
+      ORDER BY c.created_at DESC
+    `);
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `contacts-${dateStr}.csv`;
+
+    // helper: ป้องกัน comma/newline ใน field
+    const cell = v => {
+      if (v == null) return '';
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+
+    const headers = ['ID','ชื่อ','บริษัท','อีเมล','เบอร์','Status','Tags','Notes','จำนวน Deals','มูลค่ารวม (฿)','วันที่สร้าง'];
+    const rows = result.rows.map(r => [
+      r.id, r.name, r.company, r.email, r.phone, r.status,
+      r.tags, r.notes, r.deal_count, r.deal_total,
+      new Date(r.created_at).toLocaleDateString('th-TH'),
+    ].map(cell).join(','));
+
+    const csv = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('GET /contacts/export:', err.message);
+    res.status(500).json({ error: 'Export ไม่สำเร็จ' });
+  }
+});
+
 // ── GET /api/contacts/stats ───────────────────────────────────────────────────
 // ⚠️ ต้องอยู่ก่อน /:id
 router.get('/stats', async (req, res) => {

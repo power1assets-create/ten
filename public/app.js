@@ -471,6 +471,17 @@ document.addEventListener('keydown', e => {
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
+// ─── Export CSV ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const a = document.createElement('a');
+  a.href = '/api/contacts/export';
+  a.download = '';          // ชื่อไฟล์มาจาก Content-Disposition ของ server
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('กำลัง Export CSV…');
+}
+
 // ─── Section Title (Sidebar) ───────────────────────────────────────────────────
 // โหลด saved titles จาก localStorage
 function loadSectionTitles() {
