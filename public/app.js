@@ -131,7 +131,10 @@ function toggleSidebar() {
   $('overlay').classList.toggle('hidden');
 }
 function closeSidebar() {
-  $('sidebar').classList.add('-translate-x-full');
+  // ปิด sidebar เฉพาะ mobile (< 1024px) — desktop ให้ sidebar คงอยู่เสมอ
+  if (window.innerWidth < 1024) {
+    $('sidebar').classList.add('-translate-x-full');
+  }
   $('overlay').classList.add('hidden');
 }
 
@@ -169,14 +172,14 @@ function renderPipeline(pipeline) {
     const col = colors[s.stage] || '#3b82f6';
     return `
       <div class="flex items-center gap-4">
-        <span class="text-xs text-blue-700 w-24 shrink-0 capitalize tracking-wider">${s.stage}</span>
+        <span class="text-xs w-24 shrink-0 capitalize tracking-wider" style="color:#94a3b8;">${s.stage}</span>
         <div class="flex-1 rounded-full h-1.5" style="background:#0f1f3d;">
           <div style="width:${pct}%;height:100%;border-radius:4px;
                       background:${col};box-shadow:0 0 8px ${col}88;
                       transition:width .6s ease;"></div>
         </div>
-        <span class="text-xs text-blue-500 w-28 text-right shrink-0">${formatMoney(s.total_value)}</span>
-        <span class="text-xs text-blue-800 w-14 text-right shrink-0">${s.count} deals</span>
+        <span class="text-xs w-28 text-right shrink-0" style="color:#cbd5e1;">${formatMoney(s.total_value)}</span>
+        <span class="text-xs w-14 text-right shrink-0" style="color:#64748b;">${s.count} deals</span>
       </div>`;
   }).join('');
 }
@@ -476,6 +479,14 @@ function loadSectionTitles() {
     const key = input.dataset.key;
     if (key && saved[key]) input.value = saved[key];
   });
+}
+
+function focusSecTitle(btn) {
+  // หา input ใน sec-header เดียวกัน
+  const input = btn.closest('.sec-header')?.querySelector('.section-title-edit');
+  if (!input) return;
+  input.focus();
+  input.select();
 }
 
 function saveSectionTitle(input) {
