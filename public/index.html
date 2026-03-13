@@ -1,207 +1,603 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CRM App</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>windxtenshop · CRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
-    /* ── Reset & Base ── */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f0f2f5;
-      color: #333;
+    :root {
+      --bg:      #020812;
+      --bg2:     #050f1e;
+      --bg3:     #071526;
+      --border:  #0a3060;
+      --blue:    #1e90ff;
+      --cyan:    #00d4ff;
+      --glow:    0 0 15px #1e90ff55, 0 0 40px #1e90ff22;
+      --glow-sm: 0 0 8px #1e90ff66;
+    }
+    *  { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:#a8c8f0; font-family:'Rajdhani',sans-serif; }
+
+    /* ── scrollbar ── */
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:var(--bg); }
+    ::-webkit-scrollbar-thumb { background:#0a3060; border-radius:4px; }
+
+    /* ── grid scanline overlay ── */
+    body::before {
+      content:'';
+      position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:
+        linear-gradient(rgba(30,144,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30,144,255,.02) 1px, transparent 1px);
+      background-size: 40px 40px;
     }
 
-    /* ── Layout ── */
-    header {
-      background: #2563eb;
-      color: white;
-      padding: 16px 32px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    /* ── logo shimmer ── */
+    .logo-text {
+      font-family:'Orbitron',sans-serif; font-weight:900; font-size:.95rem;
+      letter-spacing:.06em;
+      background:linear-gradient(90deg,#1e90ff,#00d4ff,#ffffff,#00d4ff,#1e90ff);
+      background-size:300%; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+      animation: shimmer 4s linear infinite;
     }
-    header h1 { font-size: 1.4rem; }
+    @keyframes shimmer { to { background-position:300% center; } }
 
-    nav {
-      background: white;
-      display: flex;
-      gap: 4px;
-      padding: 8px 32px;
-      border-bottom: 1px solid #e5e7eb;
+    /* ── neon card ── */
+    .neon-card {
+      background:var(--bg2);
+      border:1px solid var(--border);
+      border-radius:10px;
+      position:relative; overflow:hidden;
+      transition:border-color .2s, box-shadow .2s;
     }
-    nav button {
-      padding: 8px 20px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      background: transparent;
-      color: #555;
-      transition: background 0.2s;
+    .neon-card::before {
+      content:'';
+      position:absolute; inset:0;
+      background:linear-gradient(135deg,rgba(30,144,255,.05) 0%,transparent 60%);
+      pointer-events:none;
     }
-    nav button:hover { background: #f3f4f6; }
-    nav button.active { background: #2563eb; color: white; }
+    .neon-card:hover { border-color:#1e4080; box-shadow:0 0 20px #1e90ff15; }
 
-    main { padding: 24px 32px; max-width: 1100px; margin: 0 auto; }
-
-    /* ── Cards & Tables ── */
-    .card {
-      background: white;
-      border-radius: 10px;
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    /* ── stat card top border glow ── */
+    .stat-card::after {
+      content:'';
+      position:absolute; top:0; left:0; right:0; height:2px;
+      background:linear-gradient(90deg,transparent,var(--blue),transparent);
+      opacity:.6;
     }
-    .card h2 { margin-bottom: 16px; font-size: 1.1rem; color: #1e40af; }
 
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th { background: #f8fafc; padding: 10px 12px; text-align: left; border-bottom: 2px solid #e5e7eb; }
-    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
-    tr:hover td { background: #f8fafc; }
-
-    /* ── Forms ── */
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-bottom: 12px;
+    /* ── nav active ── */
+    .nav-active {
+      background:linear-gradient(90deg,rgba(30,144,255,.15),transparent) !important;
+      border-left:2px solid #1e90ff !important;
+      color:#00d4ff !important;
     }
-    input, select {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      font-size: 0.9rem;
-    }
-    input:focus, select:focus { outline: none; border-color: #2563eb; }
 
-    /* ── Buttons ── */
-    .btn {
-      padding: 8px 18px;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: opacity 0.2s;
+    /* ── neon button ── */
+    .btn-blue {
+      background:linear-gradient(135deg,rgba(30,144,255,.2),rgba(0,100,200,.2));
+      border:1px solid rgba(30,144,255,.5);
+      color:#00d4ff; font-family:'Rajdhani',sans-serif;
+      font-weight:700; letter-spacing:.06em;
+      transition:all .2s; border-radius:8px;
     }
-    .btn:hover { opacity: 0.85; }
-    .btn-primary { background: #2563eb; color: white; }
-    .btn-danger  { background: #ef4444; color: white; padding: 4px 12px; font-size: 0.8rem; }
-    .btn-edit    { background: #f59e0b; color: white; padding: 4px 12px; font-size: 0.8rem; }
+    .btn-blue:hover {
+      background:linear-gradient(135deg,rgba(30,144,255,.3),rgba(0,100,200,.3));
+      box-shadow:var(--glow-sm); border-color:#1e90ff;
+    }
 
-    /* ── Stage Badge ── */
+    /* ── table ── */
+    .trow { transition:background .15s; }
+    .trow:hover { background:rgba(30,144,255,.05); }
+
+    /* ── badge ── */
     .badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 99px;
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-family:'Rajdhani',sans-serif; font-weight:700;
+      font-size:.68rem; letter-spacing:.1em; text-transform:uppercase;
+      padding:2px 9px; border-radius:4px;
     }
-    .badge-lead        { background: #dbeafe; color: #1d4ed8; }
-    .badge-proposal    { background: #fef9c3; color: #92400e; }
-    .badge-negotiation { background: #fce7f3; color: #9d174d; }
-    .badge-won         { background: #d1fae5; color: #065f46; }
-    .badge-lost        { background: #fee2e2; color: #991b1b; }
 
-    /* ── Tab sections ── */
-    .tab-section { display: none; }
-    .tab-section.active { display: block; }
-
-    /* ── Toast ── */
-    #toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: #1e293b; color: white;
-      padding: 12px 20px; border-radius: 8px;
-      font-size: 0.9rem; opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
+    /* ── hex divider ── */
+    .hex-line {
+      height:1px;
+      background:linear-gradient(90deg,transparent,#1e90ff55,#00d4ff55,#1e90ff55,transparent);
     }
-    #toast.show { opacity: 1; }
+
+    /* ── section label ── */
+    .sec-label {
+      font-family:'Orbitron',sans-serif; font-size:.58rem;
+      letter-spacing:.14em; text-transform:uppercase;
+      color:var(--cyan); background:rgba(0,212,255,.1);
+      border:1px solid rgba(0,212,255,.25);
+      padding:2px 10px; border-radius:99px; display:inline-block;
+    }
+
+    /* ── heading editable ── */
+    .editable { outline:none; border-bottom:1px dashed transparent; transition:border-color .2s; }
+    .editable:focus { border-bottom-color:rgba(30,144,255,.5); }
+
+    /* ── pipeline bar ── */
+    .pipe-bar { height:5px; border-radius:3px; transition:width .7s ease; }
+
+    /* ── spinner ── */
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spinner { animation:spin .7s linear infinite; }
+
+    /* ── pulse dot ── */
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
+    .pulse-dot { animation:pulse 1.8s ease-in-out infinite; }
+
+    /* ── fade up ── */
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    .fade-in { animation:fadeUp .25s ease-out; }
+
+    /* ── bolt flicker ── */
+    @keyframes flicker { 0%,100%{opacity:.4}50%{opacity:.9} }
+    .flicker { animation:flicker 2.5s ease-in-out infinite; }
+
+    /* ── input ── */
+    .inp {
+      background:var(--bg); border:1px solid #0a3060;
+      color:#a8c8f0; border-radius:8px; font-family:'Rajdhani',sans-serif;
+      font-size:.9rem; width:100%; padding:9px 12px;
+      transition:border-color .2s;
+    }
+    .inp:focus { outline:none; border-color:rgba(30,144,255,.6); box-shadow:0 0 0 3px rgba(30,144,255,.08); }
+    .inp::placeholder { color:#1a3a5c; }
+    select.inp { cursor:pointer; }
+
+    /* ── modal backdrop ── */
+    .modal-bg { background:rgba(2,8,18,.85); backdrop-filter:blur(6px); }
   </style>
 </head>
-<body>
 
-<header>
-  <span style="font-size:1.6rem">📊</span>
-  <h1>CRM App</h1>
-</header>
+<body class="flex h-screen overflow-hidden relative">
 
-<nav>
-  <button class="active" onclick="switchTab('contacts', this)">👥 Contacts</button>
-  <button onclick="switchTab('deals', this)">💼 Deals</button>
-</nav>
+<!-- ══════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════ -->
+<aside id="sidebar"
+  class="w-60 shrink-0 flex flex-col border-r z-40 transition-transform duration-300
+         max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:-translate-x-full"
+  style="background:var(--bg2); border-color:var(--border);">
 
-<main>
-
-  <!-- ─── Contacts Tab ─── -->
-  <div id="tab-contacts" class="tab-section active">
-    <div class="card">
-      <h2>เพิ่ม Contact ใหม่</h2>
-      <div class="form-grid">
-        <input id="c-name"    type="text"  placeholder="ชื่อ *" />
-        <input id="c-email"   type="email" placeholder="Email *" />
-        <input id="c-phone"   type="text"  placeholder="เบอร์โทร" />
-        <input id="c-company" type="text"  placeholder="บริษัท" />
+  <!-- Logo -->
+  <div class="px-5 pt-5 pb-4 border-b" style="border-color:var(--border);">
+    <div class="flex items-center gap-2.5">
+      <!-- Lightning icon -->
+      <div class="relative w-8 h-8 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-lg" style="background:rgba(30,144,255,.15);border:1px solid rgba(30,144,255,.3);"></div>
+        <svg class="w-5 h-5 flicker" style="color:#00d4ff;" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
       </div>
-      <button class="btn btn-primary" onclick="addContact()">+ เพิ่ม Contact</button>
+      <div>
+        <div class="logo-text">windxten</div>
+        <div class="text-xs" style="color:#1e4a7a;letter-spacing:.1em;font-size:.55rem;">SHOP · CRM</div>
+      </div>
     </div>
-
-    <div class="card">
-      <h2>รายชื่อ Contacts</h2>
-      <table>
-        <thead>
-          <tr><th>ชื่อ</th><th>Email</th><th>โทร</th><th>บริษัท</th><th>จัดการ</th></tr>
-        </thead>
-        <tbody id="contacts-table">
-          <tr><td colspan="5" style="text-align:center;color:#999">กำลังโหลด...</td></tr>
-        </tbody>
-      </table>
+    <!-- Online indicator -->
+    <div class="flex items-center gap-1.5 mt-3 ml-0.5">
+      <div class="w-1.5 h-1.5 rounded-full pulse-dot" style="background:#00d4ff;box-shadow:0 0 6px #00d4ff;"></div>
+      <span class="text-xs" style="color:#1e4a7a;letter-spacing:.08em;">SYSTEM ONLINE</span>
     </div>
   </div>
 
-  <!-- ─── Deals Tab ─── -->
-  <div id="tab-deals" class="tab-section">
-    <div class="card">
-      <h2>เพิ่ม Deal ใหม่</h2>
-      <div class="form-grid">
-        <input id="d-title" type="text"   placeholder="ชื่อ Deal *" />
-        <input id="d-value" type="number" placeholder="มูลค่า (บาท)" min="0" />
-        <select id="d-stage">
+  <!-- Nav -->
+  <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+    <p class="text-xs px-3 mb-2.5" style="color:#1e4a7a;letter-spacing:.14em;font-family:'Orbitron',sans-serif;font-size:.58rem;">NAVIGATION</p>
+
+    <button onclick="navigate('dashboard')" id="nav-dashboard"
+      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left
+             border border-transparent hover:border-blue-900/30
+             transition-all" style="color:#4a7aaa;">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"/>
+      </svg>
+      DASHBOARD
+    </button>
+
+    <button onclick="navigate('contacts')" id="nav-contacts"
+      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left
+             border border-transparent hover:border-blue-900/30
+             transition-all" style="color:#4a7aaa;">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+      </svg>
+      CONTACTS
+    </button>
+
+    <button onclick="navigate('deals')" id="nav-deals"
+      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-left
+             border border-transparent hover:border-blue-900/30
+             transition-all" style="color:#4a7aaa;">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+      </svg>
+      DEALS
+    </button>
+
+    <div class="hex-line my-3"></div>
+
+    <p class="text-xs px-3 mb-2" style="color:#1e4a7a;letter-spacing:.14em;font-family:'Orbitron',sans-serif;font-size:.58rem;">SECTIONS</p>
+
+    <div id="custom-sections-nav" class="space-y-1"></div>
+
+    <button onclick="addSection()"
+      class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs mt-1
+             border border-dashed transition-all hover:border-blue-700/50"
+      style="color:#1e4a7a;border-color:#0a3060;">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      + เพิ่มหัวข้อ
+    </button>
+  </nav>
+
+  <!-- User -->
+  <div class="px-4 py-3.5 border-t" style="border-color:var(--border);">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-bold text-sm"
+           style="background:linear-gradient(135deg,#1e90ff,#0050cc);color:#fff;font-family:'Orbitron',sans-serif;">W</div>
+      <div>
+        <p class="text-sm font-semibold" style="color:#a8c8f0;">windxten</p>
+        <p class="text-xs" style="color:#1e4a7a;letter-spacing:.06em;">MANAGER</p>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div id="overlay" onclick="closeSidebar()" class="hidden fixed inset-0 bg-black/60 z-30 lg:hidden"></div>
+
+<!-- ══════════════════════════════════════
+     MAIN
+══════════════════════════════════════ -->
+<div class="flex-1 flex flex-col overflow-hidden relative z-10">
+
+  <!-- Topbar -->
+  <header class="flex items-center gap-4 px-6 py-3 shrink-0 border-b"
+    style="background:var(--bg2);border-color:var(--border);">
+    <button onclick="toggleSidebar()" class="lg:hidden" style="color:#4a7aaa;">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+
+    <!-- Editable heading -->
+    <div class="flex items-center gap-2 flex-1 min-w-0">
+      <svg class="w-3.5 h-3.5 shrink-0 flicker" style="color:#1e90ff;" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+      <h1 id="page-title" contenteditable="true" spellcheck="false"
+        class="editable text-sm font-bold truncate"
+        style="font-family:'Orbitron',sans-serif;letter-spacing:.08em;color:#1e90ff;
+               text-shadow:0 0 12px rgba(30,144,255,.5);"
+        title="คลิกเพื่อแก้ไขหัวข้อ">DASHBOARD</h1>
+      <span class="text-xs shrink-0" style="color:#1e3a5a;" title="คลิกเพื่อแก้ไข">✎</span>
+    </div>
+
+    <span id="last-updated" class="text-xs shrink-0" style="color:#1e4a7a;letter-spacing:.06em;"></span>
+  </header>
+
+  <!-- Content -->
+  <main class="flex-1 overflow-y-auto p-5 space-y-5">
+
+    <!-- ══ DASHBOARD ══ -->
+    <section id="section-dashboard" class="fade-in">
+
+      <!-- 4 Stat cards -->
+      <div class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+
+        <div class="neon-card stat-card p-5">
+          <div class="flex items-start justify-between mb-3">
+            <span class="sec-label">CONTACTS</span>
+            <svg class="w-7 h-7 flicker" style="color:rgba(30,144,255,.2);" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <p id="stat-total" class="text-4xl font-black" style="font-family:'Orbitron',sans-serif;color:#1e90ff;text-shadow:0 0 15px rgba(30,144,255,.5);">—</p>
+          <p class="text-xs mt-1" style="color:#1e4a7a;letter-spacing:.06em;">ผู้ติดต่อทั้งหมด</p>
+        </div>
+
+        <div class="neon-card stat-card p-5">
+          <div class="flex items-start justify-between mb-3">
+            <span class="sec-label" style="color:#60a5fa;background:rgba(96,165,250,.1);border-color:rgba(96,165,250,.25);">LEADS</span>
+            <svg class="w-7 h-7" style="color:rgba(96,165,250,.2);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </div>
+          <p id="stat-lead" class="text-4xl font-black" style="font-family:'Orbitron',sans-serif;color:#60a5fa;">—</p>
+          <p class="text-xs mt-1" style="color:#1e4a7a;letter-spacing:.06em;">รอติดตาม</p>
+        </div>
+
+        <div class="neon-card stat-card p-5">
+          <div class="flex items-start justify-between mb-3">
+            <span class="sec-label" style="color:#34d399;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.25);">CUSTOMERS</span>
+            <svg class="w-7 h-7" style="color:rgba(52,211,153,.2);" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <p id="stat-active" class="text-4xl font-black" style="font-family:'Orbitron',sans-serif;color:#34d399;">—</p>
+          <p class="text-xs mt-1" style="color:#1e4a7a;letter-spacing:.06em;">ลูกค้า active</p>
+        </div>
+
+        <div class="neon-card stat-card p-5">
+          <div class="flex items-start justify-between mb-3">
+            <span class="sec-label" style="color:#fbbf24;background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.25);">DEALS</span>
+            <svg class="w-7 h-7 flicker" style="color:rgba(251,191,36,.25);" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <p id="stat-deal-value" class="text-2xl font-black" style="font-family:'Orbitron',sans-serif;color:#fbbf24;font-size:1.15rem;">—</p>
+          <p class="text-xs mt-1" style="color:#1e4a7a;letter-spacing:.06em;">มูลค่ารวม</p>
+        </div>
+      </div>
+
+      <!-- Pipeline -->
+      <div class="neon-card p-6">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="sec-label">SALES PIPELINE</span>
+        </div>
+        <div id="pipeline-bars" class="space-y-4">
+          <div class="flex justify-center py-8">
+            <div class="spinner w-7 h-7 border-2 rounded-full" style="border-color:#1e90ff44;border-top-color:#1e90ff;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ CONTACTS ══ -->
+    <section id="section-contacts" class="hidden fade-in">
+
+      <!-- Filter bar -->
+      <div class="flex flex-wrap items-center gap-3 mb-4">
+        <select id="filter-status" onchange="filterContacts()" class="inp" style="width:auto;min-width:130px;">
+          <option value="">▸ ทุก Status</option>
           <option value="lead">Lead</option>
-          <option value="proposal">Proposal</option>
-          <option value="negotiation">Negotiation</option>
-          <option value="won">Won</option>
-          <option value="lost">Lost</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
         </select>
-        <select id="d-contact">
-          <option value="">-- เลือก Contact --</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="addDeal()">+ เพิ่ม Deal</button>
-    </div>
 
-    <div class="card">
-      <h2>รายการ Deals</h2>
-      <table>
-        <thead>
-          <tr><th>ชื่อ Deal</th><th>มูลค่า</th><th>Stage</th><th>Contact</th><th>จัดการ</th></tr>
-        </thead>
-        <tbody id="deals-table">
-          <tr><td colspan="5" style="text-align:center;color:#999">กำลังโหลด...</td></tr>
-        </tbody>
-      </table>
+        <div class="relative flex-1 min-w-[180px] max-w-xs">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color:#1e4a7a;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input id="filter-search" oninput="filterContacts()" type="text"
+            placeholder="ค้นหา ชื่อ / Email / ทีม…"
+            class="inp pl-9"/>
+        </div>
+
+        <span id="contact-count" class="text-xs" style="color:#1e4a7a;letter-spacing:.06em;">— รายการ</span>
+        <div class="flex-1"></div>
+
+        <button onclick="openContactModal()" class="btn-blue flex items-center gap-2 px-4 py-2 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          + RECRUIT
+        </button>
+      </div>
+
+      <!-- Table -->
+      <div class="neon-card overflow-hidden">
+        <!-- Column header bar -->
+        <div class="hex-line"></div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th class="text-left px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">ชื่อ / EMAIL</th>
+              <th class="text-left px-5 py-3.5 hidden sm:table-cell" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">สมาชิก</th>
+              <th class="text-left px-5 py-3.5 hidden md:table-cell" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">อาวุธ</th>
+              <th class="text-left px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">การกระทำ</th>
+              <th class="text-left px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">STATUS</th>
+              <th class="text-right px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-tbody">
+            <tr><td colspan="6" class="py-16 text-center">
+              <div class="flex flex-col items-center gap-3">
+                <div class="spinner w-8 h-8 border-2 rounded-full" style="border-color:#1e90ff22;border-top-color:#1e90ff;"></div>
+                <span class="text-xs tracking-widest" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">LOADING DATA...</span>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ══ DEALS ══ -->
+    <section id="section-deals" class="hidden fade-in">
+
+      <div class="flex items-center justify-between mb-4">
+        <span id="deals-count" class="text-xs" style="color:#1e4a7a;letter-spacing:.06em;">— รายการ</span>
+        <button onclick="openDealModal()" class="btn-blue flex items-center gap-2 px-4 py-2 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          + NEW DEAL
+        </button>
+      </div>
+
+      <div class="neon-card overflow-hidden">
+        <div class="hex-line"></div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th class="text-left px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">DEAL</th>
+              <th class="text-left px-5 py-3.5 hidden sm:table-cell" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">CONTACT</th>
+              <th class="text-left px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">STAGE</th>
+              <th class="text-right px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">VALUE</th>
+              <th class="text-right px-5 py-3.5" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody id="deals-tbody">
+            <tr><td colspan="5" class="py-16 text-center">
+              <div class="flex flex-col items-center gap-3">
+                <div class="spinner w-8 h-8 border-2 rounded-full" style="border-color:#1e90ff22;border-top-color:#1e90ff;"></div>
+                <span class="text-xs tracking-widest" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">LOADING DATA...</span>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- custom sections -->
+    <div id="custom-sections-container"></div>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL — Contact
+══════════════════════════════════════ -->
+<div id="contact-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="modal-bg absolute inset-0" onclick="closeContactModal()"></div>
+  <div class="relative w-full max-w-md neon-card fade-in" style="border-color:rgba(30,144,255,.35);box-shadow:var(--glow);">
+    <!-- Top accent line -->
+    <div class="h-0.5 w-full" style="background:linear-gradient(90deg,transparent,#1e90ff,#00d4ff,#1e90ff,transparent);"></div>
+    <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--border);">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 flicker" style="color:#1e90ff;" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span id="contact-modal-title" class="font-bold text-sm tracking-widest" style="font-family:'Orbitron',sans-serif;color:#00d4ff;">ADD CONTACT</span>
+      </div>
+      <button onclick="closeContactModal()" style="color:#1e4a7a;" class="hover:text-red-400 transition-colors text-lg leading-none">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="contact-id"/>
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">NAME <span style="color:#1e90ff;">*</span></label>
+        <input id="c-name" type="text" placeholder="ชื่อ-นามสกุล" class="inp"/>
+      </div>
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">EMAIL <span style="color:#1e90ff;">*</span></label>
+        <input id="c-email" type="email" placeholder="email@example.com" class="inp"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">PHONE</label>
+          <input id="c-phone" type="text" placeholder="08X-XXX-XXXX" class="inp"/>
+        </div>
+        <div>
+          <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">STATUS</label>
+          <select id="c-status" class="inp">
+            <option value="lead">Lead</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">TEAM / COMPANY</label>
+        <input id="c-company" type="text" placeholder="ชื่อทีม / บริษัท" class="inp"/>
+      </div>
+    </div>
+    <div class="flex gap-3 px-6 pb-6">
+      <button onclick="closeContactModal()"
+        class="flex-1 py-2.5 rounded-lg text-sm transition-colors"
+        style="border:1px solid var(--border);color:#1e4a7a;">CANCEL</button>
+      <button onclick="saveContact()" class="flex-1 btn-blue py-2.5 text-sm">SAVE</button>
     </div>
   </div>
+</div>
 
-</main>
+<!-- ══════════════════════════════════════
+     MODAL — Deal
+══════════════════════════════════════ -->
+<div id="deal-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="modal-bg absolute inset-0" onclick="closeDealModal()"></div>
+  <div class="relative w-full max-w-md neon-card fade-in" style="border-color:rgba(30,144,255,.35);box-shadow:var(--glow);">
+    <div class="h-0.5 w-full" style="background:linear-gradient(90deg,transparent,#1e90ff,#00d4ff,#1e90ff,transparent);"></div>
+    <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--border);">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 flicker" style="color:#1e90ff;" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span id="deal-modal-title" class="font-bold text-sm tracking-widest" style="font-family:'Orbitron',sans-serif;color:#00d4ff;">NEW DEAL</span>
+      </div>
+      <button onclick="closeDealModal()" style="color:#1e4a7a;" class="hover:text-red-400 transition-colors text-lg leading-none">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <input type="hidden" id="deal-id"/>
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">DEAL NAME <span style="color:#1e90ff;">*</span></label>
+        <input id="d-title" type="text" placeholder="ชื่อ deal" class="inp"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">VALUE (฿)</label>
+          <input id="d-value" type="number" placeholder="0" min="0" class="inp"/>
+        </div>
+        <div>
+          <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">STAGE</label>
+          <select id="d-stage" class="inp">
+            <option value="lead">Lead</option>
+            <option value="proposal">Proposal</option>
+            <option value="negotiation">Negotiation</option>
+            <option value="won">Won</option>
+            <option value="lost">Lost</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">CONTACT</label>
+        <select id="d-contact" class="inp">
+          <option value="">— ไม่ระบุ —</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 px-6 pb-6">
+      <button onclick="closeDealModal()"
+        class="flex-1 py-2.5 rounded-lg text-sm transition-colors"
+        style="border:1px solid var(--border);color:#1e4a7a;">CANCEL</button>
+      <button onclick="saveDeal()" class="flex-1 btn-blue py-2.5 text-sm">SAVE</button>
+    </div>
+  </div>
+</div>
 
-<div id="toast"></div>
+<!-- ══════════════════════════════════════
+     MODAL — Add Section
+══════════════════════════════════════ -->
+<div id="section-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="modal-bg absolute inset-0" onclick="closeSectionModal()"></div>
+  <div class="relative w-full max-w-sm neon-card fade-in" style="border-color:rgba(30,144,255,.35);box-shadow:var(--glow);">
+    <div class="h-0.5 w-full" style="background:linear-gradient(90deg,transparent,#1e90ff,#00d4ff,#1e90ff,transparent);"></div>
+    <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--border);">
+      <span class="font-bold text-sm tracking-widest" style="font-family:'Orbitron',sans-serif;color:#00d4ff;">+ ADD SECTION</span>
+      <button onclick="closeSectionModal()" style="color:#1e4a7a;" class="hover:text-red-400 text-lg leading-none">✕</button>
+    </div>
+    <div class="p-6 space-y-4">
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">SECTION TITLE</label>
+        <input id="new-section-title" type="text" placeholder="เช่น Tournament, Sponsorship…" class="inp"/>
+      </div>
+      <div>
+        <label class="block text-xs mb-1.5 tracking-wider" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">DESCRIPTION</label>
+        <textarea id="new-section-desc" rows="2" placeholder="คำอธิบาย…" class="inp resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-3 px-6 pb-6">
+      <button onclick="closeSectionModal()"
+        class="flex-1 py-2.5 rounded-lg text-sm"
+        style="border:1px solid var(--border);color:#1e4a7a;">CANCEL</button>
+      <button onclick="confirmAddSection()" class="flex-1 btn-blue py-2.5 text-sm">CREATE</button>
+    </div>
+  </div>
+</div>
 
-<!-- โหลด JavaScript หลัก -->
+<!-- ══ TOAST ══ -->
+<div id="toast"
+  class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl
+         text-sm border opacity-0 translate-y-3 transition-all duration-300 pointer-events-none"
+  style="background:var(--bg2);border-color:rgba(30,144,255,.3);box-shadow:var(--glow);">
+  <span id="toast-icon" style="color:#1e90ff;">⚡</span>
+  <span id="toast-msg" style="color:#a8c8f0;"></span>
+</div>
+
 <script src="app.js"></script>
-
 </body>
 </html>

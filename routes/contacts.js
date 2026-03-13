@@ -1,110 +1,134 @@
-// routes/contacts.js — จัดการ CRUD สำหรับ Contacts (ลูกค้า/ผู้ติดต่อ)
-// Schema: id, name, email, phone, company, created_at
+// routes/contacts.js
+// GET    /api/contacts          — รายการทั้งหมด (?search= &status=)
+// GET    /api/contacts/stats    — สรุปแต่ละ status
+// GET    /api/contacts/:id      — รายบุคคล
+// POST   /api/contacts          — เพิ่มใหม่
+// PUT    /api/contacts/:id      — แก้ไข
+// DELETE /api/contacts/:id      — ลบ
 
 const express = require('express');
 const router  = express.Router();
 const pool    = require('../db');
 
-// ─── GET /api/contacts ─────────────────────────────────────────────────────────
-// ดึง contacts ทั้งหมด เรียงจากใหม่ไปเก่า
+const VALID_STATUS = ['lead', 'prospect', 'customer', 'inactive'];
+
+// GET /api/contacts
 router.get('/', async (req, res) => {
   try {
+    const { search, status } = req.query;
+    const params = [], conds = [];
+
+    if (search) {
+      params.push(`%${search}%`);
+      conds.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length} OR company ILIKE $${params.length} OR tags ILIKE $${params.length})`);
+    }
+    if (status) {
+      params.push(status);
+      conds.push(`status = $${params.length}`);
+    }
+
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const result = await pool.query(
-      'SELECT * FROM contacts ORDER BY created_at DESC'
+      `SELECT * FROM contacts ${where} ORDER BY created_at DESC`,
+      params
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('GET /contacts error:', err.message);
-    res.status(500).json({ error: 'ดึงข้อมูล contacts ไม่สำเร็จ' });
-  }
-});
-
-// ─── GET /api/contacts/:id ─────────────────────────────────────────────────────
-// ดึง contact คนเดียวตาม id
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(
-      'SELECT * FROM contacts WHERE id = $1',
-      [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'ไม่พบ contact นี้' });
-    }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('GET /contacts/:id error:', err.message);
+    console.error('GET /contacts:', err.message);
     res.status(500).json({ error: 'ดึงข้อมูลไม่สำเร็จ' });
   }
 });
 
-// ─── POST /api/contacts ────────────────────────────────────────────────────────
-// สร้าง contact ใหม่
-router.post('/', async (req, res) => {
+// GET /api/contacts/stats
+router.get('/stats', async (req, res) => {
   try {
-    const { name, email, phone, company } = req.body;
-
-    // ตรวจ field บังคับ
-    if (!name || !email) {
-      return res.status(400).json({ error: 'ต้องระบุ name และ email' });
-    }
-
-    const result = await pool.query(
-      `INSERT INTO contacts (name, email, phone, company)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [name, email, phone || null, company || null]
-    );
-    res.status(201).json(result.rows[0]);
+    const result = await pool.query(`
+      SELECT status, COUNT(*)::INT AS count
+      FROM contacts GROUP BY status
+    `);
+    const stats = { lead: 0, prospect: 0, customer: 0, inactive: 0, total: 0 };
+    result.rows.forEach(r => {
+      if (r.status in stats) stats[r.status] = r.count;
+      stats.total += r.count;
+    });
+    res.json(stats);
   } catch (err) {
-    // error code 23505 = unique violation (email ซ้ำ)
-    if (err.code === '23505') {
-      return res.status(409).json({ error: 'Email นี้มีอยู่แล้ว' });
-    }
-    console.error('POST /contacts error:', err.message);
-    res.status(500).json({ error: 'สร้าง contact ไม่สำเร็จ' });
+    console.error('GET /contacts/stats:', err.message);
+    res.status(500).json({ error: 'ดึง stats ไม่สำเร็จ' });
   }
 });
 
-// ─── PUT /api/contacts/:id ─────────────────────────────────────────────────────
-// อัปเดต contact ตาม id
-router.put('/:id', async (req, res) => {
+// GET /api/contacts/:id
+router.get('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { name, email, phone, company } = req.body;
-
-    const result = await pool.query(
-      `UPDATE contacts
-       SET name = $1, email = $2, phone = $3, company = $4
-       WHERE id = $5
-       RETURNING *`,
-      [name, email, phone || null, company || null, id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'ไม่พบ contact นี้' });
-    }
+    const result = await pool.query('SELECT * FROM contacts WHERE id = $1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'ไม่พบ contact' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('PUT /contacts/:id error:', err.message);
+    console.error('GET /contacts/:id:', err.message);
+    res.status(500).json({ error: 'ดึงข้อมูลไม่สำเร็จ' });
+  }
+});
+
+// POST /api/contacts
+router.post('/', async (req, res) => {
+  try {
+    const { name, company, email, phone, status, tags, notes } = req.body;
+    if (!name?.trim())  return res.status(400).json({ error: 'ต้องระบุ name' });
+    if (!email?.trim()) return res.status(400).json({ error: 'ต้องระบุ email' });
+    if (status && !VALID_STATUS.includes(status))
+      return res.status(400).json({ error: `status ต้องเป็น: ${VALID_STATUS.join(', ')}` });
+
+    const result = await pool.query(
+      `INSERT INTO contacts (name, company, email, phone, status, tags, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [name.trim(), company||null, email.trim().toLowerCase(), phone||null,
+       status||'lead', tags||null, notes||null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Email นี้มีอยู่แล้ว' });
+    console.error('POST /contacts:', err.message);
+    res.status(500).json({ error: 'สร้างไม่สำเร็จ' });
+  }
+});
+
+// PUT /api/contacts/:id
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, company, email, phone, status, tags, notes } = req.body;
+    if (!name?.trim())  return res.status(400).json({ error: 'ต้องระบุ name' });
+    if (!email?.trim()) return res.status(400).json({ error: 'ต้องระบุ email' });
+    if (status && !VALID_STATUS.includes(status))
+      return res.status(400).json({ error: `status ต้องเป็น: ${VALID_STATUS.join(', ')}` });
+
+    const result = await pool.query(
+      `UPDATE contacts SET
+         name=$1, company=$2, email=$3, phone=$4,
+         status=$5, tags=$6, notes=$7, updated_at=NOW()
+       WHERE id=$8 RETURNING *`,
+      [name.trim(), company||null, email.trim().toLowerCase(), phone||null,
+       status||'lead', tags||null, notes||null, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'ไม่พบ contact' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Email นี้มีอยู่แล้ว' });
+    console.error('PUT /contacts/:id:', err.message);
     res.status(500).json({ error: 'อัปเดตไม่สำเร็จ' });
   }
 });
 
-// ─── DELETE /api/contacts/:id ──────────────────────────────────────────────────
-// ลบ contact ตาม id
+// DELETE /api/contacts/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const { id } = req.params;
     const result = await pool.query(
-      'DELETE FROM contacts WHERE id = $1 RETURNING id',
-      [id]
+      'DELETE FROM contacts WHERE id=$1 RETURNING id, name', [req.params.id]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'ไม่พบ contact นี้' });
-    }
-    res.json({ message: 'ลบสำเร็จ', id: result.rows[0].id });
+    if (!result.rows.length) return res.status(404).json({ error: 'ไม่พบ contact' });
+    res.json({ message: `ลบ "${result.rows[0].name}" สำเร็จ`, id: result.rows[0].id });
   } catch (err) {
-    console.error('DELETE /contacts/:id error:', err.message);
+    console.error('DELETE /contacts/:id:', err.message);
     res.status(500).json({ error: 'ลบไม่สำเร็จ' });
   }
 });
