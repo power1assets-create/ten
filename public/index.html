@@ -84,6 +84,109 @@
       padding: 0 2px;
       font-weight: 700;
     }
+
+    /* ── Sidebar section header ── */
+    .sidebar-section-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px 4px;
+      margin-top: 4px;
+      position: relative;
+    }
+    .sidebar-section-label::before {
+      content: '';
+      display: block;
+      width: 3px;
+      height: 12px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+      box-shadow: 0 0 6px rgba(59,130,246,0.6);
+      flex-shrink: 0;
+    }
+    .section-title-edit {
+      font-family: 'Orbitron', sans-serif;
+      font-size: .6rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: #3b82f6;
+      background: transparent;
+      border: none;
+      outline: none;
+      width: 100%;
+      cursor: text;
+      text-shadow: 0 0 8px rgba(59,130,246,0.4);
+    }
+    .section-title-edit:focus {
+      color: #93c5fd;
+      text-shadow: 0 0 10px rgba(147,197,253,0.5);
+    }
+
+    /* ── Divider line ── */
+    .sidebar-divider {
+      height: 1px;
+      margin: 6px 12px;
+      background: linear-gradient(90deg, transparent, rgba(59,130,246,0.3), transparent);
+    }
+
+    /* ── Nav item ── */
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: .875rem;
+      font-weight: 500;
+      color: #2563eb;
+      border: 1px solid transparent;
+      transition: all .15s;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      background: transparent;
+      position: relative;
+    }
+    .nav-item:hover {
+      color: #93c5fd;
+      background: rgba(59,130,246,0.06);
+      border-color: rgba(59,130,246,0.15);
+    }
+    .nav-item.nav-active {
+      color: #93c5fd !important;
+      background: rgba(59,130,246,0.12);
+      border-color: rgba(59,130,246,0.3);
+      border-left: 2px solid #3b82f6;
+    }
+    .nav-item.nav-active::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: #3b82f6;
+      box-shadow: 0 0 6px #3b82f6;
+    }
+
+    /* ── Esport scan line overlay ── */
+    aside::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        rgba(59,130,246,0.015) 3px,
+        rgba(59,130,246,0.015) 4px
+      );
+      pointer-events: none;
+      border-radius: inherit;
+    }
   </style>
 </head>
 
@@ -122,42 +225,131 @@
   </div>
 
   <!-- Navigation -->
-  <nav class="flex-1 px-3 py-4 space-y-1">
-    <p class="text-xs px-3 mb-3 text-blue-900 tracking-widest font-semibold uppercase"
-       style="font-size:.6rem;">Main Menu</p>
+  <nav class="flex-1 overflow-y-auto py-2">
 
-    <button onclick="navigate('dashboard')" id="nav-dashboard"
-      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-             text-blue-600 hover:text-blue-400 hover:bg-blue-950/40
-             border-l-3 border-transparent transition-all text-left">
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-          d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"/>
+    <!-- ── SECTION: OVERVIEW ── -->
+    <div class="sidebar-section-label group">
+      <input class="section-title-edit" value="OVERVIEW"
+             data-key="sec-overview" data-default="OVERVIEW"
+             onblur="saveSectionTitle(this)"
+             onkeydown="if(event.key==='Enter')this.blur()"
+             title="คลิกเพื่อแก้ไขหัวข้อ"/>
+      <svg class="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
+           style="color:#3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
       </svg>
-      Dashboard
-    </button>
+    </div>
 
-    <button onclick="navigate('contacts')" id="nav-contacts"
-      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-             text-blue-600 hover:text-blue-400 hover:bg-blue-950/40
-             border-l-3 border-transparent transition-all text-left">
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
-      </svg>
-      Contacts
-    </button>
+    <div class="px-2 space-y-0.5">
+      <button onclick="navigate('dashboard')" id="nav-dashboard" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"/>
+        </svg>
+        Dashboard
+      </button>
+    </div>
 
-    <button onclick="navigate('deals')" id="nav-deals"
-      class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-             text-blue-600 hover:text-blue-400 hover:bg-blue-950/40
-             border-l-3 border-transparent transition-all text-left">
-      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-          d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+    <div class="sidebar-divider"></div>
+
+    <!-- ── SECTION: CRM ── -->
+    <div class="sidebar-section-label group">
+      <input class="section-title-edit" value="CRM"
+             data-key="sec-crm" data-default="CRM"
+             onblur="saveSectionTitle(this)"
+             onkeydown="if(event.key==='Enter')this.blur()"
+             title="คลิกเพื่อแก้ไขหัวข้อ"/>
+      <svg class="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
+           style="color:#3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
       </svg>
-      Deals
-    </button>
+    </div>
+
+    <div class="px-2 space-y-0.5">
+      <button onclick="navigate('contacts')" id="nav-contacts" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        Contacts
+      </button>
+
+      <button onclick="navigate('deals')" id="nav-deals" class="nav-item">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+        </svg>
+        Deals
+      </button>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- ── SECTION: ESPORT (แก้ไขได้) ── -->
+    <div class="sidebar-section-label group">
+      <input class="section-title-edit" value="ESPORT"
+             data-key="sec-esport" data-default="ESPORT"
+             onblur="saveSectionTitle(this)"
+             onkeydown="if(event.key==='Enter')this.blur()"
+             title="คลิกเพื่อแก้ไขหัวข้อ"/>
+      <svg class="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
+           style="color:#3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+      </svg>
+    </div>
+
+    <div class="px-2 space-y-0.5">
+      <button class="nav-item" style="cursor:default;opacity:.4;" disabled>
+        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        Tournament
+      </button>
+      <button class="nav-item" style="cursor:default;opacity:.4;" disabled>
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+        </svg>
+        Ranking
+      </button>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- ── SECTION: SHOP ── -->
+    <div class="sidebar-section-label group">
+      <input class="section-title-edit" value="SHOP"
+             data-key="sec-shop" data-default="SHOP"
+             onblur="saveSectionTitle(this)"
+             onkeydown="if(event.key==='Enter')this.blur()"
+             title="คลิกเพื่อแก้ไขหัวข้อ"/>
+      <svg class="w-3 h-3 shrink-0 opacity-0 group-hover:opacity-60 transition-opacity"
+           style="color:#3b82f6;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+      </svg>
+    </div>
+
+    <div class="px-2 space-y-0.5">
+      <button class="nav-item" style="cursor:default;opacity:.4;" disabled>
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+        </svg>
+        Products
+      </button>
+      <button class="nav-item" style="cursor:default;opacity:.4;" disabled>
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        Orders
+      </button>
+    </div>
+
   </nav>
 
   <!-- User -->

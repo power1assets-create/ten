@@ -11,7 +11,7 @@ const pool = new Pool(
         connectionString: process.env.DATABASE_URL,
         ssl: { rejectUnauthorized: false }, // Railway TLS
         connectionTimeoutMillis: 10000,
-        idleTimeoutMillis: 30000,
+        idleTimeoutMillis:       30000,
         max: 10,
       }
     : {
@@ -28,6 +28,7 @@ const pool = new Pool(
 async function initDB() {
   const client = await pool.connect();
   try {
+    // ── contacts ──────────────────────────────────────────────────────────────
     await client.query(`
       CREATE TABLE IF NOT EXISTS contacts (
         id         SERIAL PRIMARY KEY,
@@ -42,7 +43,10 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
+    `);
 
+    // ── deals ─────────────────────────────────────────────────────────────────
+    await client.query(`
       CREATE TABLE IF NOT EXISTS deals (
         id         SERIAL PRIMARY KEY,
         contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
@@ -54,13 +58,17 @@ async function initDB() {
         notes      TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+    `);
 
+    // ── safe migrations (IF NOT EXISTS) ───────────────────────────────────────
+    await client.query(`
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS tags       TEXT;
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes      TEXT;
       ALTER TABLE contacts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW();
       ALTER TABLE deals    ADD COLUMN IF NOT EXISTS close_date DATE;
       ALTER TABLE deals    ADD COLUMN IF NOT EXISTS notes      TEXT;
     `);
+
     console.log('✅ initDB: tables ready');
   } finally {
     client.release();
@@ -77,6 +85,7 @@ async function seedData() {
       return;
     }
 
+    // ── 10 contacts ───────────────────────────────────────────────────────────
     await client.query(`
       INSERT INTO contacts (name, company, email, phone, status, tags, notes) VALUES
         ('สมชาย ใจดี',     'Team Alpha',     'somchai@alpha.gg',  '081-111-1111', 'customer', 'vip,esport',   'ลูกค้าประจำ'),
@@ -92,6 +101,7 @@ async function seedData() {
       ON CONFLICT (email) DO NOTHING;
     `);
 
+    // ── 5 deals ───────────────────────────────────────────────────────────────
     await client.query(`
       INSERT INTO deals (contact_id, title, value, stage, close_date, notes)
       SELECT c.id, d.title, d.value::DECIMAL, d.stage, d.close_date::DATE, d.notes
@@ -120,7 +130,6 @@ async function boot(attempt = 1, maxAttempts = 10) {
   try {
     console.log(`🔌 Connecting to DB... (attempt ${attempt}/${maxAttempts})`);
 
-    // ทดสอบ connection + แสดง error จริง
     await pool.query('SELECT 1');
     console.log('✅ PostgreSQL connected');
 
@@ -129,19 +138,18 @@ async function boot(attempt = 1, maxAttempts = 10) {
 
     console.log('✅ Boot complete');
   } catch (err) {
-    // แสดง error message จริง (ไม่ว่างเปล่าแน่นอน)
     const msg = err.message || err.code || JSON.stringify(err);
     console.error(`❌ Boot attempt ${attempt} failed: ${msg}`);
 
     if (attempt < maxAttempts) {
-      const delay = Math.min(attempt * 2000, 10000); // 2s, 4s, 6s… max 10s
+      const delay = Math.min(attempt * 2000, 10000); // 2s, 4s, 6s … max 10s
       console.log(`⏳ Retry in ${delay / 1000}s...`);
       await new Promise(r => setTimeout(r, delay));
       return boot(attempt + 1, maxAttempts);
     }
 
     // ครบ 10 ครั้งแล้วยังไม่ได้ — log และ continue (ไม่ exit)
-    // เพื่อให้ Railway health check ผ่านก่อน แล้วค่อย retry ทีหลัง
+    // เพื่อให้ Railway health check ผ่านก่อน
     console.error('❌ DB unavailable after max retries — server running without DB');
   }
 }

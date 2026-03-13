@@ -1,10 +1,10 @@
 // routes/contacts.js
-// GET    /api/contacts          — รายการทั้งหมด (?search= &status=)
-// GET    /api/contacts/stats    — สรุปแต่ละ status
-// GET    /api/contacts/:id      — รายบุคคล
-// POST   /api/contacts          — เพิ่มใหม่
-// PUT    /api/contacts/:id      — แก้ไข
-// DELETE /api/contacts/:id      — ลบ
+// GET    /api/contacts        — รายการทั้งหมด (?search= &status=)
+// GET    /api/contacts/stats  — สรุปจำนวนแต่ละ status
+// GET    /api/contacts/:id    — รายบุคคล
+// POST   /api/contacts        — เพิ่มใหม่
+// PUT    /api/contacts/:id    — แก้ไข
+// DELETE /api/contacts/:id    — ลบ
 
 const express = require('express');
 const router  = express.Router();
@@ -12,7 +12,8 @@ const pool    = require('../db');
 
 const VALID_STATUS = ['lead', 'prospect', 'customer', 'inactive'];
 
-// GET /api/contacts
+// ── GET /api/contacts ─────────────────────────────────────────────────────────
+// Query params: ?search=xxx  ?status=lead|prospect|customer|inactive
 router.get('/', async (req, res) => {
   try {
     const { search, status } = req.query;
@@ -20,14 +21,16 @@ router.get('/', async (req, res) => {
 
     if (search) {
       params.push(`%${search}%`);
-      conds.push(`(name ILIKE $${params.length} OR email ILIKE $${params.length} OR company ILIKE $${params.length} OR tags ILIKE $${params.length})`);
+      const p = params.length;
+      conds.push(`(name ILIKE $${p} OR email ILIKE $${p} OR company ILIKE $${p} OR tags ILIKE $${p})`);
     }
+
     if (status) {
       params.push(status);
       conds.push(`status = $${params.length}`);
     }
 
-    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+    const where  = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const result = await pool.query(
       `SELECT * FROM contacts ${where} ORDER BY created_at DESC`,
       params
@@ -39,7 +42,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/contacts/stats
+// ── GET /api/contacts/stats ───────────────────────────────────────────────────
+// ⚠️ ต้องอยู่ก่อน /:id
 router.get('/stats', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -58,10 +62,13 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// GET /api/contacts/:id
+// ── GET /api/contacts/:id ─────────────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM contacts WHERE id = $1', [req.params.id]);
+    const result = await pool.query(
+      'SELECT * FROM contacts WHERE id = $1',
+      [req.params.id]
+    );
     if (!result.rows.length) return res.status(404).json({ error: 'ไม่พบ contact' });
     res.json(result.rows[0]);
   } catch (err) {
@@ -70,10 +77,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/contacts
+// ── POST /api/contacts ────────────────────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
     const { name, company, email, phone, status, tags, notes } = req.body;
+
     if (!name?.trim())  return res.status(400).json({ error: 'ต้องระบุ name' });
     if (!email?.trim()) return res.status(400).json({ error: 'ต้องระบุ email' });
     if (status && !VALID_STATUS.includes(status))
@@ -82,8 +90,15 @@ router.post('/', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO contacts (name, company, email, phone, status, tags, notes)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [name.trim(), company||null, email.trim().toLowerCase(), phone||null,
-       status||'lead', tags||null, notes||null]
+      [
+        name.trim(),
+        company  || null,
+        email.trim().toLowerCase(),
+        phone    || null,
+        status   || 'lead',
+        tags     || null,
+        notes    || null,
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -93,10 +108,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/contacts/:id
+// ── PUT /api/contacts/:id ─────────────────────────────────────────────────────
+// updated_at อัปเดตอัตโนมัติด้วย NOW()
 router.put('/:id', async (req, res) => {
   try {
     const { name, company, email, phone, status, tags, notes } = req.body;
+
     if (!name?.trim())  return res.status(400).json({ error: 'ต้องระบุ name' });
     if (!email?.trim()) return res.status(400).json({ error: 'ต้องระบุ email' });
     if (status && !VALID_STATUS.includes(status))
@@ -107,8 +124,16 @@ router.put('/:id', async (req, res) => {
          name=$1, company=$2, email=$3, phone=$4,
          status=$5, tags=$6, notes=$7, updated_at=NOW()
        WHERE id=$8 RETURNING *`,
-      [name.trim(), company||null, email.trim().toLowerCase(), phone||null,
-       status||'lead', tags||null, notes||null, req.params.id]
+      [
+        name.trim(),
+        company  || null,
+        email.trim().toLowerCase(),
+        phone    || null,
+        status   || 'lead',
+        tags     || null,
+        notes    || null,
+        req.params.id,
+      ]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'ไม่พบ contact' });
     res.json(result.rows[0]);
@@ -119,11 +144,12 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/contacts/:id
+// ── DELETE /api/contacts/:id ──────────────────────────────────────────────────
 router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM contacts WHERE id=$1 RETURNING id, name', [req.params.id]
+      'DELETE FROM contacts WHERE id=$1 RETURNING id, name',
+      [req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'ไม่พบ contact' });
     res.json({ message: `ลบ "${result.rows[0].name}" สำเร็จ`, id: result.rows[0].id });

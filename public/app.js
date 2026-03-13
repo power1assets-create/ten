@@ -468,12 +468,35 @@ document.addEventListener('keydown', e => {
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
 
+// ─── Section Title (Sidebar) ───────────────────────────────────────────────────
+// โหลด saved titles จาก localStorage
+function loadSectionTitles() {
+  const saved = JSON.parse(localStorage.getItem('sectionTitles') || '{}');
+  document.querySelectorAll('.section-title-edit').forEach(input => {
+    const key = input.dataset.key;
+    if (key && saved[key]) input.value = saved[key];
+  });
+}
+
+function saveSectionTitle(input) {
+  const key = input.dataset.key;
+  if (!key) return;
+  const val = input.value.trim();
+  if (!val) { input.value = input.dataset.default || key; return; }
+
+  const saved = JSON.parse(localStorage.getItem('sectionTitles') || '{}');
+  saved[key] = val;
+  localStorage.setItem('sectionTitles', JSON.stringify(saved));
+  showToast(`บันทึกหัวข้อ "${val}" แล้ว`);
+}
+
 // ผูก input event กับ debounce (ต้องรอ DOM พร้อมก่อน)
 document.addEventListener('DOMContentLoaded', () => {
   const searchInput = $('filter-search');
   if (searchInput) {
     searchInput.addEventListener('input', filterContacts);
   }
+  loadSectionTitles();
 });
 
 navigate('dashboard');
