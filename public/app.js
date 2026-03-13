@@ -1,77 +1,105 @@
 // app.js — windxtenshop CRM Frontend
 
 // ─── State ─────────────────────────────────────────────────────────────────────
-let allContacts  = [];
-let currentPage  = 'dashboard';
-let customSections = JSON.parse(localStorage.getItem('crm_sections') || '[]');
+let allContacts   = [];
+let currentPage   = 'dashboard';
+let searchDebounce = null; // debounce timer
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 function showToast(msg, isError = false) {
   const t = $('toast');
-  $('toast-icon').textContent = isError ? '⚠' : '⚡';
-  $('toast-icon').style.color = isError ? '#f87171' : '#1e90ff';
+  $('toast-icon').textContent = isError ? '❌' : '✅';
   $('toast-msg').textContent  = msg;
-  $('toast-msg').style.color  = isError ? '#f87171' : '#a8c8f0';
-  t.classList.remove('translate-y-4','opacity-0');
-  t.classList.add('translate-y-0','opacity-100');
+  $('toast-msg').style.color  = isError ? '#f87171' : '#93c5fd';
+  t.style.borderColor         = isError ? '#7f1d1d' : '#1e3a5f';
+  t.classList.remove('opacity-0', 'translate-y-3');
+  t.classList.add('opacity-100', 'translate-y-0');
   setTimeout(() => {
-    t.classList.add('translate-y-4','opacity-0');
-    t.classList.remove('translate-y-0','opacity-100');
+    t.classList.add('opacity-0', 'translate-y-3');
+    t.classList.remove('opacity-100', 'translate-y-0');
   }, 3000);
 }
 
 function formatMoney(n) {
   return Number(n).toLocaleString('th-TH') + ' ฿';
 }
+
 function formatDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
 }
-function escHtml(s) {
+
+// ป้องกัน XSS
+function esc(s) {
   if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-                  .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
 
-// Status badge — สีน้ำเงิน theme
+// Highlight คำค้นหาใน string (ป้องกัน XSS ก่อน แล้วค่อย wrap)
+function highlight(text, keyword) {
+  const safe = esc(text);
+  if (!keyword) return safe;
+  // escape regex special chars
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${escaped})`, 'gi');
+  return safe.replace(re, '<span class="hl">$1</span>');
+}
+
+// ─── Status Badges ─────────────────────────────────────────────────────────────
+// lead = น้ำเงิน | prospect = เหลือง | customer = เขียว | inactive = เทา
 function contactBadge(status) {
   const map = {
-    lead:     { s: 'color:#00d4ff;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3)',   label: '◈ LEAD' },
-    active:   { s: 'color:#34d399;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3)', label: '◉ ACTIVE' },
-    inactive: { s: 'color:#4a7aaa;background:rgba(74,122,170,.1);border:1px solid rgba(74,122,170,.3)', label: '◌ INACTIVE' },
+    lead:     { bg: 'rgba(59,130,246,0.15)',  border: 'rgba(59,130,246,0.4)',  color: '#93c5fd', label: 'Lead' },
+    prospect: { bg: 'rgba(251,191,36,0.15)',  border: 'rgba(251,191,36,0.4)',  color: '#fcd34d', label: 'Prospect' },
+    customer: { bg: 'rgba(52,211,153,0.15)',  border: 'rgba(52,211,153,0.4)',  color: '#6ee7b7', label: 'Customer' },
+    inactive: { bg: 'rgba(107,114,128,0.15)', border: 'rgba(107,114,128,0.4)', color: '#9ca3af', label: 'Inactive' },
   };
   const b = map[status] || map.inactive;
-  return `<span class="badge" style="${b.s}">${b.label}</span>`;
+  return `<span style="background:${b.bg};border:1px solid ${b.border};color:${b.color};
+                       padding:2px 9px;border-radius:6px;font-size:.7rem;font-weight:700;
+                       letter-spacing:.06em;text-transform:uppercase;">${b.label}</span>`;
 }
 
 // Stage badge — Deals
 function stageBadge(stage) {
   const map = {
-    lead:        { s: 'color:#1e90ff;background:rgba(30,144,255,.12);border:1px solid rgba(30,144,255,.25)',  label: 'LEAD' },
-    proposal:    { s: 'color:#fbbf24;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.25)',  label: 'PROPOSAL' },
-    negotiation: { s: 'color:#a78bfa;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.25)',label: 'NEGO' },
-    won:         { s: 'color:#34d399;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.25)',  label: '✓ WON' },
-    lost:        { s: 'color:#f87171;background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25)',label: 'LOST' },
+    new:         { bg: 'rgba(59,130,246,0.15)',  border: 'rgba(59,130,246,0.35)',  color: '#93c5fd', label: 'New' },
+    contacted:   { bg: 'rgba(139,92,246,0.15)',  border: 'rgba(139,92,246,0.35)',  color: '#c4b5fd', label: 'Contacted' },
+    proposal:    { bg: 'rgba(251,191,36,0.15)',  border: 'rgba(251,191,36,0.35)',  color: '#fcd34d', label: 'Proposal' },
+    negotiation: { bg: 'rgba(249,115,22,0.15)',  border: 'rgba(249,115,22,0.35)',  color: '#fdba74', label: 'Negotiation' },
+    won:         { bg: 'rgba(52,211,153,0.15)',  border: 'rgba(52,211,153,0.35)',  color: '#6ee7b7', label: '✓ Won' },
+    lost:        { bg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.35)',   color: '#fca5a5', label: 'Lost' },
   };
-  const b = map[stage] || { s: '', label: stage };
-  return `<span class="badge" style="${b.s}">${b.label}</span>`;
+  const b = map[stage] || { bg:'transparent', border:'#374151', color:'#9ca3af', label: stage };
+  return `<span style="background:${b.bg};border:1px solid ${b.border};color:${b.color};
+                       padding:2px 9px;border-radius:6px;font-size:.7rem;font-weight:700;
+                       letter-spacing:.06em;text-transform:uppercase;">${b.label}</span>`;
 }
 
+// Loading row
 function loadingRow(cols) {
-  return `<tr><td colspan="${cols}" class="py-16 text-center">
-    <div class="flex flex-col items-center gap-3">
-      <div class="spinner w-8 h-8 border-2 rounded-full" style="border-color:#1e90ff22;border-top-color:#1e90ff;"></div>
-      <span class="text-xs tracking-widest" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">LOADING DATA...</span>
+  return `<tr><td colspan="${cols}">
+    <div class="flex flex-col items-center justify-center py-16 gap-3">
+      <div class="spinner w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+      <p class="text-xs text-blue-800 tracking-wider">กำลังโหลด...</p>
     </div></td></tr>`;
 }
 
-function emptyRow(cols, msg = 'NO DATA') {
-  return `<tr><td colspan="${cols}" class="py-16 text-center">
-    <div class="flex flex-col items-center gap-3">
-      <svg class="w-10 h-10" style="color:#0a3060;" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-      <span class="text-xs tracking-widest" style="color:#1e4a7a;font-family:'Orbitron',sans-serif;font-size:.6rem;">${msg}</span>
+// Empty state
+function emptyRow(cols, msg = 'ไม่พบข้อมูล') {
+  return `<tr><td colspan="${cols}">
+    <div class="flex flex-col items-center justify-center py-16 gap-4">
+      <div class="w-14 h-14 rounded-full flex items-center justify-center" style="background:rgba(59,130,246,0.08);">
+        <svg class="w-7 h-7 text-blue-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/>
+        </svg>
+      </div>
+      <p class="text-sm text-blue-800">${msg}</p>
     </div></td></tr>`;
 }
 
@@ -79,36 +107,17 @@ function emptyRow(cols, msg = 'NO DATA') {
 function navigate(page) {
   currentPage = page;
 
-  // ซ่อนทุก section หลัก
   ['dashboard','contacts','deals'].forEach(p => {
     $(`section-${p}`)?.classList.add('hidden');
     const nav = $(`nav-${p}`);
-    if (nav) {
-      nav.classList.remove('nav-active');
-      nav.classList.add('text-blue-300/70');
-    }
+    if (nav) nav.classList.remove('nav-active');
   });
 
-  // ซ่อน custom sections
-  document.querySelectorAll('.custom-section').forEach(el => el.classList.add('hidden'));
+  $(`section-${page}`)?.classList.remove('hidden');
+  $(`nav-${page}`)?.classList.add('nav-active');
 
   const titles = { dashboard: 'DASHBOARD', contacts: 'CONTACTS', deals: 'DEALS' };
-
-  if (['dashboard','contacts','deals'].includes(page)) {
-    $(`section-${page}`).classList.remove('hidden');
-    const nav = $(`nav-${page}`);
-    nav.classList.add('nav-active');
-    nav.classList.remove('text-blue-300/70');
-    $('page-title').textContent = titles[page];
-  } else {
-    // custom section
-    const sec = document.getElementById(`custom-sec-${page}`);
-    if (sec) {
-      sec.classList.remove('hidden');
-      const s = customSections.find(s => s.id === page);
-      $('page-title').textContent = s ? s.title.toUpperCase() : page.toUpperCase();
-    }
-  }
+  $('page-title').textContent = titles[page] || page.toUpperCase();
 
   if (page === 'dashboard') loadDashboard();
   if (page === 'contacts')  loadContacts();
@@ -134,112 +143,175 @@ async function loadDashboard() {
       fetch('/api/deals/pipeline').then(r => r.json()),
     ]);
 
-    $('stat-total').textContent      = stats.total  ?? 0;
-    $('stat-lead').textContent       = stats.lead   ?? 0;
-    $('stat-active').textContent     = stats.active ?? 0;
+    $('stat-total').textContent    = stats.total    ?? 0;
+    $('stat-lead').textContent     = (stats.lead ?? 0) + (stats.prospect ?? 0);
+    $('stat-customer').textContent = stats.customer ?? 0;
 
-    const total = pipeline.reduce((s, p) => s + Number(p.total_value), 0);
-    $('stat-deal-value').textContent = formatMoney(total);
+    const totalValue = pipeline.reduce((s, p) => s + Number(p.total_value), 0);
+    $('stat-deal-value').textContent = formatMoney(totalValue);
 
     renderPipeline(pipeline);
-    $('last-updated').textContent = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  } catch (err) {
+    $('last-updated').textContent = 'อัปเดต ' + new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  } catch {
     showToast('โหลด dashboard ไม่สำเร็จ', true);
   }
 }
 
 function renderPipeline(pipeline) {
-  const max = Math.max(...pipeline.map(s => Number(s.total_value)), 1);
-  const stageColor = {
-    lead:'#60a5fa', proposal:'#fbbf24', negotiation:'#a78bfa', won:'#34d399', lost:'#f87171'
+  const colors = {
+    new:'#3b82f6', contacted:'#8b5cf6', proposal:'#f59e0b',
+    negotiation:'#f97316', won:'#10b981', lost:'#ef4444',
   };
+  const maxVal = Math.max(...pipeline.map(s => Number(s.total_value)), 1);
+
   $('pipeline-bars').innerHTML = pipeline.map(s => {
-    const pct = (Number(s.total_value) / max * 100).toFixed(1);
-    const col = stageColor[s.stage] || '#00cfff';
+    const pct = (Number(s.total_value) / maxVal * 100).toFixed(1);
+    const col = colors[s.stage] || '#3b82f6';
     return `
-      <div class="flex items-center gap-3">
-        <span class="text-xs text-blue-500 w-24 shrink-0 uppercase tracking-wider">${s.stage}</span>
-        <div class="flex-1 h-1.5 rounded-full" style="background:#0d1f33">
-          <div style="width:${pct}%;background:${col};height:100%;border-radius:3px;
-                      box-shadow:0 0 8px ${col}88;transition:width .6s ease;"></div>
+      <div class="flex items-center gap-4">
+        <span class="text-xs text-blue-700 w-24 shrink-0 capitalize tracking-wider">${s.stage}</span>
+        <div class="flex-1 rounded-full h-1.5" style="background:#0f1f3d;">
+          <div style="width:${pct}%;height:100%;border-radius:4px;
+                      background:${col};box-shadow:0 0 8px ${col}88;
+                      transition:width .6s ease;"></div>
         </div>
-        <span class="text-xs text-blue-400 w-28 text-right shrink-0">${formatMoney(s.total_value)}</span>
-        <span class="text-xs text-blue-700 w-14 text-right shrink-0">${s.count} deals</span>
+        <span class="text-xs text-blue-500 w-28 text-right shrink-0">${formatMoney(s.total_value)}</span>
+        <span class="text-xs text-blue-800 w-14 text-right shrink-0">${s.count} deals</span>
       </div>`;
   }).join('');
 }
 
 // ─── Contacts ──────────────────────────────────────────────────────────────────
 async function loadContacts() {
-  $('contacts-tbody').innerHTML = loadingRow(5);
+  $('contacts-tbody').innerHTML = loadingRow(6);
   try {
     const res = await fetch('/api/contacts');
     allContacts = await res.json();
     renderContacts(allContacts);
     populateContactSelect(allContacts);
   } catch {
-    $('contacts-tbody').innerHTML = emptyRow(5, 'CONNECTION ERROR');
+    $('contacts-tbody').innerHTML = emptyRow(6, 'เชื่อมต่อ server ไม่สำเร็จ');
   }
 }
 
+// filterContacts — เรียกทุกครั้งที่ input เปลี่ยน (ผ่าน debounce)
 function filterContacts() {
-  const status = $('filter-status').value;
-  const search = $('filter-search').value.toLowerCase();
-  const filtered = allContacts.filter(c => {
-    const ms = !status || c.status === status;
-    const mq = !search || c.name.toLowerCase().includes(search) ||
-               c.email.toLowerCase().includes(search) || (c.company||'').toLowerCase().includes(search);
-    return ms && mq;
-  });
-  renderContacts(filtered);
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(_doFilter, 300); // debounce 300ms
 }
 
-function renderContacts(list) {
-  $('contact-count').textContent = `${list.length} รายการ`;
+function _doFilter() {
+  const status  = $('filter-status').value;
+  const keyword = $('filter-search').value.trim();
+  const q       = keyword.toLowerCase();
+
+  // แสดง/ซ่อน clear X button ใน input
+  $('search-clear').classList.toggle('hidden', !keyword);
+
+  const hasFilter = !!(status || keyword);
+
+  // สลับ UI ระหว่าง badge count (มี filter) กับ plain count (ไม่มี filter)
+  $('filter-active').classList.toggle('hidden', !hasFilter);
+  $('filter-active').classList.toggle('flex', hasFilter);
+  $('contact-count-plain').classList.toggle('hidden', hasFilter);
+
+  const list = allContacts.filter(c => {
+    const matchStatus = !status || c.status === status;
+    const matchQuery  = !q ||
+      (c.name    ||'').toLowerCase().includes(q) ||
+      (c.company ||'').toLowerCase().includes(q) ||
+      (c.email   ||'').toLowerCase().includes(q) ||
+      (c.phone   ||'').toLowerCase().includes(q);
+    return matchStatus && matchQuery;
+  });
+
+  // แสดง "X จาก Y รายการ"
+  const countText = hasFilter
+    ? `แสดง ${list.length} จาก ${allContacts.length} รายการ`
+    : `${list.length} รายการ`;
+
+  $('contact-count').textContent       = countText;
+  $('contact-count-plain').textContent = countText;
+
+  renderContacts(list, keyword);
+}
+
+function clearSearch() {
+  $('filter-search').value = '';
+  _doFilter();
+  $('filter-search').focus();
+}
+
+function clearAll() {
+  $('filter-search').value  = '';
+  $('filter-status').value  = '';
+  _doFilter();
+}
+
+function renderContacts(list, keyword = '') {
   if (!list.length) {
-    $('contacts-tbody').innerHTML = emptyRow(6, 'NO CONTACTS FOUND');
+    const msg = keyword || $('filter-status').value
+      ? 'ไม่พบข้อมูลที่ค้นหา'
+      : 'ยังไม่มี contacts';
+    $('contacts-tbody').innerHTML = emptyRow(6, msg);
     return;
   }
-  $('contacts-tbody').innerHTML = list.map(c => `
-    <tr class="trow transition-colors" style="border-top:1px solid rgba(10,48,96,.6);">
-      <!-- ชื่อ / Email -->
+
+  $('contacts-tbody').innerHTML = list.map(c => {
+    // highlight เฉพาะ field ที่ค้นหาได้
+    const hName    = highlight(c.name,    keyword);
+    const hCompany = highlight(c.company, keyword);
+    const hEmail   = highlight(c.email,   keyword);
+    const hPhone   = highlight(c.phone,   keyword);
+
+    return `
+    <tr class="trow border-t transition-colors" style="border-color:rgba(30,58,94,0.5);">
+      <!-- ชื่อ -->
       <td class="px-5 py-3.5">
-        <div class="font-semibold text-sm" style="color:#a8c8f0;">${escHtml(c.name)}</div>
-        <div class="text-xs mt-0.5" style="color:#1e4a7a;">${escHtml(c.email)}</div>
+        <div class="font-semibold text-blue-100 text-sm">${hName}</div>
+        ${c.tags ? `<div class="text-xs text-blue-800 mt-0.5">${esc(c.tags)}</div>` : ''}
       </td>
-      <!-- สมาชิก = team/company -->
-      <td class="px-5 py-3.5 hidden sm:table-cell text-sm" style="color:#4a7aaa;">${escHtml(c.company||'—')}</td>
-      <!-- อาวุธ = phone -->
-      <td class="px-5 py-3.5 hidden md:table-cell text-sm font-mono" style="color:#1e90ff;font-size:.78rem;">${escHtml(c.phone||'—')}</td>
-      <!-- การกระทำ = created date -->
-      <td class="px-5 py-3.5 text-xs" style="color:#1e4a7a;letter-spacing:.04em;">${formatDate(c.created_at)}</td>
+      <!-- บริษัท -->
+      <td class="px-5 py-3.5 hidden sm:table-cell text-sm text-blue-500">${hCompany || '—'}</td>
+      <!-- อีเมล -->
+      <td class="px-5 py-3.5 hidden md:table-cell text-sm text-blue-600">${hEmail}</td>
+      <!-- เบอร์ -->
+      <td class="px-5 py-3.5 hidden lg:table-cell text-sm text-blue-700 font-mono">${hPhone || '—'}</td>
       <!-- Status badge -->
       <td class="px-5 py-3.5">${contactBadge(c.status)}</td>
       <!-- Actions -->
       <td class="px-5 py-3.5 text-right">
-        <div class="flex items-center justify-end gap-1">
+        <div class="flex items-center justify-end gap-1.5">
           <button onclick='openContactModal(${JSON.stringify(c)})'
-            class="text-xs px-2.5 py-1 rounded transition-colors tracking-wider"
-            style="color:#1e90ff;border:1px solid rgba(30,144,255,.2);"
-            onmouseover="this.style.background='rgba(30,144,255,.1)'"
-            onmouseout="this.style.background='transparent'">EDIT</button>
-          <button onclick="deleteContact(${c.id},'${escHtml(c.name)}')"
-            class="text-xs px-2.5 py-1 rounded transition-colors tracking-wider"
-            style="color:#4a7aaa;border:1px solid rgba(74,122,170,.15);"
-            onmouseover="this.style.color='#f87171';this.style.borderColor='rgba(248,113,113,.3)'"
-            onmouseout="this.style.color='#4a7aaa';this.style.borderColor='rgba(74,122,170,.15)'">DEL</button>
+            class="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
+            style="color:#60a5fa;border:1px solid rgba(59,130,246,0.25);"
+            onmouseover="this.style.background='rgba(59,130,246,0.1)'"
+            onmouseout="this.style.background='transparent'">แก้ไข</button>
+          <button onclick="deleteContact(${c.id},'${esc(c.name)}')"
+            class="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
+            style="color:#6b7280;border:1px solid rgba(107,114,128,0.2);"
+            onmouseover="this.style.color='#f87171';this.style.borderColor='rgba(239,68,68,0.3)'"
+            onmouseout="this.style.color='#6b7280';this.style.borderColor='rgba(107,114,128,0.2)'">ลบ</button>
         </div>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+function populateContactSelect(list) {
+  $('d-contact').innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+    list.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
 }
 
 function openContactModal(c = null) {
-  $('contact-id').value   = c?.id      || '';
-  $('c-name').value       = c?.name    || '';
-  $('c-email').value      = c?.email   || '';
-  $('c-phone').value      = c?.phone   || '';
-  $('c-company').value    = c?.company || '';
-  $('c-status').value     = c?.status  || 'lead';
+  $('contact-id').value  = c?.id      || '';
+  $('c-name').value      = c?.name    || '';
+  $('c-email').value     = c?.email   || '';
+  $('c-phone').value     = c?.phone   || '';
+  $('c-status').value    = c?.status  || 'lead';
+  $('c-company').value   = c?.company || '';
+  $('c-tags').value      = c?.tags    || '';
+  $('c-notes').value     = c?.notes   || '';
   $('contact-modal-title').textContent = c ? 'EDIT CONTACT' : 'ADD CONTACT';
   $('contact-modal').classList.remove('hidden');
   setTimeout(() => $('c-name').focus(), 50);
@@ -252,41 +324,39 @@ async function saveContact() {
     name:    $('c-name').value.trim(),
     email:   $('c-email').value.trim(),
     phone:   $('c-phone').value.trim(),
-    company: $('c-company').value.trim(),
     status:  $('c-status').value,
+    company: $('c-company').value.trim(),
+    tags:    $('c-tags').value.trim(),
+    notes:   $('c-notes').value.trim(),
   };
-  if (!payload.name)  return showToast('ต้องระบุ NAME', true);
-  if (!payload.email) return showToast('ต้องระบุ EMAIL', true);
+  if (!payload.name)  return showToast('กรุณาระบุ ชื่อ', true);
+  if (!payload.email) return showToast('กรุณาระบุ อีเมล', true);
+
   try {
-    const res  = await fetch(`/api/contacts${id?'/'+id:''}`, {
+    const res  = await fetch(`/api/contacts${id ? '/' + id : ''}`, {
       method: id ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) return showToast(data.error || 'ERROR', true);
-    showToast(id ? 'UPDATED ⚡' : 'RECRUITED ⚡');
+    if (!res.ok) return showToast(data.error || 'บันทึกไม่สำเร็จ', true);
+    showToast(id ? 'อัปเดตสำเร็จ' : 'เพิ่ม Contact สำเร็จ');
     closeContactModal();
     loadContacts();
     if (currentPage === 'dashboard') loadDashboard();
-  } catch { showToast('CONNECTION ERROR', true); }
+  } catch { showToast('เชื่อมต่อ server ไม่ได้', true); }
 }
 
 async function deleteContact(id, name) {
-  if (!confirm(`DELETE "${name}"?`)) return;
+  if (!confirm(`ยืนยันลบ "${name}"?`)) return;
   try {
     const res  = await fetch(`/api/contacts/${id}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) return showToast(data.error || 'ERROR', true);
-    showToast(`DELETED: ${name}`);
+    if (!res.ok) return showToast(data.error || 'ลบไม่สำเร็จ', true);
+    showToast(`ลบ "${name}" สำเร็จ`);
     loadContacts();
     if (currentPage === 'dashboard') loadDashboard();
-  } catch { showToast('CONNECTION ERROR', true); }
-}
-
-function populateContactSelect(list) {
-  $('d-contact').innerHTML = '<option value="">— ไม่ระบุ —</option>' +
-    list.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('');
+  } catch { showToast('เชื่อมต่อ server ไม่ได้', true); }
 }
 
 // ─── Deals ─────────────────────────────────────────────────────────────────────
@@ -302,50 +372,50 @@ async function loadDeals() {
       populateContactSelect(allContacts);
     }
   } catch {
-    $('deals-tbody').innerHTML = emptyRow(5, 'CONNECTION ERROR');
+    $('deals-tbody').innerHTML = emptyRow(5, 'เชื่อมต่อ server ไม่สำเร็จ');
   }
 }
 
 function renderDeals(list) {
   $('deals-count').textContent = `${list.length} รายการ`;
   if (!list.length) {
-    $('deals-tbody').innerHTML = emptyRow(5, 'NO DEALS FOUND');
+    $('deals-tbody').innerHTML = emptyRow(5, 'ยังไม่มี deals');
     return;
   }
   $('deals-tbody').innerHTML = list.map(d => `
-    <tr class="trow transition-colors" style="border-top:1px solid rgba(10,48,96,.6);">
+    <tr class="trow border-t transition-colors" style="border-color:rgba(30,58,94,0.5);">
       <td class="px-5 py-3.5">
-        <div class="font-semibold text-sm" style="color:#a8c8f0;">${escHtml(d.title)}</div>
-        <div class="text-xs mt-0.5" style="color:#1e4a7a;">${formatDate(d.created_at)}</div>
+        <div class="font-semibold text-blue-100 text-sm">${esc(d.title)}</div>
+        <div class="text-xs text-blue-800 mt-0.5">${formatDate(d.created_at)}</div>
       </td>
-      <td class="px-5 py-3.5 hidden sm:table-cell text-sm" style="color:#4a7aaa;">${escHtml(d.contact_name||'—')}</td>
+      <td class="px-5 py-3.5 hidden sm:table-cell text-sm text-blue-500">${esc(d.contact_name||'—')}</td>
       <td class="px-5 py-3.5">${stageBadge(d.stage)}</td>
-      <td class="px-5 py-3.5 text-right font-bold text-sm"
-          style="color:#1e90ff;text-shadow:0 0 10px rgba(30,144,255,.4);font-family:'Orbitron',sans-serif;font-size:.8rem;">
-        ${formatMoney(d.value)}</td>
+      <td class="px-5 py-3.5 text-right font-bold text-sm" style="color:#60a5fa;">${formatMoney(d.value)}</td>
       <td class="px-5 py-3.5 text-right">
-        <div class="flex items-center justify-end gap-1">
+        <div class="flex items-center justify-end gap-1.5">
           <button onclick='openDealModal(${JSON.stringify(d)})'
-            class="text-xs px-2.5 py-1 rounded transition-colors tracking-wider"
-            style="color:#1e90ff;border:1px solid rgba(30,144,255,.2);"
-            onmouseover="this.style.background='rgba(30,144,255,.1)'"
-            onmouseout="this.style.background='transparent'">EDIT</button>
-          <button onclick="deleteDeal(${d.id},'${escHtml(d.title)}')"
-            class="text-xs px-2.5 py-1 rounded transition-colors tracking-wider"
-            style="color:#4a7aaa;border:1px solid rgba(74,122,170,.15);"
-            onmouseover="this.style.color='#f87171';this.style.borderColor='rgba(248,113,113,.3)'"
-            onmouseout="this.style.color='#4a7aaa';this.style.borderColor='rgba(74,122,170,.15)'">DEL</button>
+            class="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
+            style="color:#60a5fa;border:1px solid rgba(59,130,246,0.25);"
+            onmouseover="this.style.background='rgba(59,130,246,0.1)'"
+            onmouseout="this.style.background='transparent'">แก้ไข</button>
+          <button onclick="deleteDeal(${d.id},'${esc(d.title)}')"
+            class="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
+            style="color:#6b7280;border:1px solid rgba(107,114,128,0.2);"
+            onmouseover="this.style.color='#f87171';this.style.borderColor='rgba(239,68,68,0.3)'"
+            onmouseout="this.style.color='#6b7280';this.style.borderColor='rgba(107,114,128,0.2)'">ลบ</button>
         </div>
       </td>
     </tr>`).join('');
 }
 
 function openDealModal(d = null) {
-  $('deal-id').value   = d?.id         || '';
-  $('d-title').value   = d?.title      || '';
-  $('d-value').value   = d?.value      || '';
-  $('d-stage').value   = d?.stage      || 'lead';
-  $('d-contact').value = d?.contact_id || '';
+  $('deal-id').value        = d?.id         || '';
+  $('d-title').value        = d?.title      || '';
+  $('d-value').value        = d?.value      || '';
+  $('d-stage').value        = d?.stage      || 'new';
+  $('d-contact').value      = d?.contact_id || '';
+  $('d-close-date').value   = d?.close_date ? d.close_date.split('T')[0] : '';
+  $('d-notes').value        = d?.notes      || '';
   $('deal-modal-title').textContent = d ? 'EDIT DEAL' : 'NEW DEAL';
   $('deal-modal').classList.remove('hidden');
   setTimeout(() => $('d-title').focus(), 50);
@@ -359,158 +429,51 @@ async function saveDeal() {
     value:      Number($('d-value').value) || 0,
     stage:      $('d-stage').value,
     contact_id: $('d-contact').value || null,
+    close_date: $('d-close-date').value || null,
+    notes:      $('d-notes').value.trim(),
   };
-  if (!payload.title) return showToast('ต้องระบุ DEAL NAME', true);
+  if (!payload.title) return showToast('กรุณาระบุ ชื่อ Deal', true);
+
   try {
-    const res  = await fetch(`/api/deals${id?'/'+id:''}`, {
+    const res  = await fetch(`/api/deals${id ? '/' + id : ''}`, {
       method: id ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) return showToast(data.error || 'ERROR', true);
-    showToast(id ? 'DEAL UPDATED ⚡' : 'DEAL CREATED ⚡');
+    if (!res.ok) return showToast(data.error || 'บันทึกไม่สำเร็จ', true);
+    showToast(id ? 'อัปเดต Deal สำเร็จ' : 'เพิ่ม Deal สำเร็จ');
     closeDealModal();
     loadDeals();
     if (currentPage === 'dashboard') loadDashboard();
-  } catch { showToast('CONNECTION ERROR', true); }
+  } catch { showToast('เชื่อมต่อ server ไม่ได้', true); }
 }
 
 async function deleteDeal(id, title) {
-  if (!confirm(`DELETE "${title}"?`)) return;
+  if (!confirm(`ยืนยันลบ "${title}"?`)) return;
   try {
     const res  = await fetch(`/api/deals/${id}`, { method: 'DELETE' });
     const data = await res.json();
-    if (!res.ok) return showToast(data.error || 'ERROR', true);
-    showToast(`DELETED: ${title}`);
+    if (!res.ok) return showToast(data.error || 'ลบไม่สำเร็จ', true);
+    showToast(`ลบ "${title}" สำเร็จ`);
     loadDeals();
     if (currentPage === 'dashboard') loadDashboard();
-  } catch { showToast('CONNECTION ERROR', true); }
+  } catch { showToast('เชื่อมต่อ server ไม่ได้', true); }
 }
 
-// ─── Custom Sections ───────────────────────────────────────────────────────────
-
-function renderCustomSectionsNav() {
-  const nav = $('custom-sections-nav');
-  nav.innerHTML = customSections.map(s => `
-    <div class="flex items-center group">
-      <button onclick="navigate('${s.id}')"
-        class="flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-blue-300/70
-               hover:text-cyan-300 hover:bg-cyan-400/5 transition-all text-left">
-        <svg class="w-4 h-4 opacity-60" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
-        <span class="truncate">${escHtml(s.title)}</span>
-      </button>
-      <button onclick="deleteSection('${s.id}')"
-        class="opacity-0 group-hover:opacity-100 text-blue-800 hover:text-red-400
-               transition-all pr-2 text-xs">✕</button>
-    </div>`).join('');
-}
-
-function renderCustomSectionsContent() {
-  const container = $('custom-sections-container');
-  container.innerHTML = customSections.map(s => `
-    <section id="custom-sec-${s.id}" class="custom-section hidden fade-in">
-      <div class="card p-6 mb-4" style="border-color:#00cfff22;">
-        <!-- Editable title -->
-        <div class="flex items-center gap-3 mb-3">
-          <svg class="w-5 h-5 text-cyan-400/60 bolt-deco" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-          </svg>
-          <h2 contenteditable="true" spellcheck="false"
-              onblur="updateSectionTitle('${s.id}', this.textContent)"
-              class="editable-heading text-cyan-300 font-bold tracking-wider"
-              style="font-family:'Orbitron',sans-serif; font-size:.9rem;"
-              title="คลิกเพื่อแก้ไขหัวข้อ">${escHtml(s.title)}</h2>
-          <span class="text-blue-700 text-xs">✎</span>
-        </div>
-        <div class="lightning-line mb-4"></div>
-
-        <!-- Editable description -->
-        <p contenteditable="true" spellcheck="false"
-           onblur="updateSectionDesc('${s.id}', this.textContent)"
-           class="editable-heading text-blue-400 text-sm leading-relaxed min-h-[40px]"
-           title="คลิกเพื่อแก้ไขคำอธิบาย">${escHtml(s.desc || 'คลิกเพื่อเพิ่มคำอธิบาย...')}</p>
-
-        <!-- Note area -->
-        <div class="mt-4">
-          <p class="text-xs text-blue-700 uppercase tracking-widest mb-2">NOTES</p>
-          <textarea onblur="updateSectionNotes('${s.id}', this.value)"
-            placeholder="บันทึกเพิ่มเติม..."
-            class="w-full bg-[#050a12] border border-blue-900/40 text-blue-300 text-sm rounded-lg
-                   px-3 py-2.5 focus:outline-none focus:border-cyan-500/40 placeholder-blue-900
-                   resize-none min-h-[100px]">${escHtml(s.notes||'')}</textarea>
-        </div>
-      </div>
-    </section>`).join('');
-}
-
-function saveCustomSections() {
-  localStorage.setItem('crm_sections', JSON.stringify(customSections));
-}
-
-function addSection() {
-  $('new-section-title').value = '';
-  $('new-section-desc').value  = '';
-  $('section-modal').classList.remove('hidden');
-  setTimeout(() => $('new-section-title').focus(), 50);
-}
-function closeSectionModal() { $('section-modal').classList.add('hidden'); }
-
-function confirmAddSection() {
-  const title = $('new-section-title').value.trim();
-  if (!title) return showToast('ต้องระบุ SECTION TITLE', true);
-
-  const id = 'sec_' + Date.now();
-  customSections.push({ id, title, desc: $('new-section-desc').value.trim(), notes: '' });
-  saveCustomSections();
-  renderCustomSectionsNav();
-  renderCustomSectionsContent();
-  closeSectionModal();
-  showToast(`SECTION "${title}" CREATED ⚡`);
-  navigate(id);
-}
-
-function deleteSection(id) {
-  const s = customSections.find(s => s.id === id);
-  if (!confirm(`DELETE SECTION "${s?.title}"?`)) return;
-  customSections = customSections.filter(s => s.id !== id);
-  saveCustomSections();
-  renderCustomSectionsNav();
-  renderCustomSectionsContent();
-  showToast('SECTION DELETED');
-  navigate('dashboard');
-}
-
-function updateSectionTitle(id, val) {
-  const s = customSections.find(s => s.id === id);
-  if (s) { s.title = val.trim(); saveCustomSections(); renderCustomSectionsNav(); }
-}
-function updateSectionDesc(id, val) {
-  const s = customSections.find(s => s.id === id);
-  if (s) { s.desc = val.trim(); saveCustomSections(); }
-}
-function updateSectionNotes(id, val) {
-  const s = customSections.find(s => s.id === id);
-  if (s) { s.notes = val; saveCustomSections(); }
-}
-
-// ─── Keyboard ──────────────────────────────────────────────────────────────────
+// ─── Keyboard shortcut ─────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeContactModal();
-    closeDealModal();
-    closeSectionModal();
-  }
-});
-
-// Page title editable — save เมื่อ blur
-$('page-title').addEventListener('blur', function() {
-  // แค่ visual — ไม่ได้ persist เพราะหน้าหลักเป็น system page
+  if (e.key === 'Escape') { closeContactModal(); closeDealModal(); }
 });
 
 // ─── Init ──────────────────────────────────────────────────────────────────────
-renderCustomSectionsNav();
-renderCustomSectionsContent();
+
+// ผูก input event กับ debounce (ต้องรอ DOM พร้อมก่อน)
+document.addEventListener('DOMContentLoaded', () => {
+  const searchInput = $('filter-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', filterContacts);
+  }
+});
+
 navigate('dashboard');
